@@ -42,7 +42,7 @@ SPECIAL_TOKENS = {
     '<unk>': 3
 }
 
-BATCH_SIZE = 128
+BATCH_SIZE = 32
 EPOCH = 1
 PRINT_STEP = 100
 
