@@ -55,6 +55,9 @@ class Encoder(nn.Module):
 
         return enc_seq  # (batch_size, source_length, hid_size)
 
+    def init_emb(self, embbedings):
+        self.emb.weight = nn.Parameter(embbedings, requires_grad=False)
+
 
 class Decoder(nn.Module):
     def __init__(self, de_vocab_size, emb_size, pad_id, hid_size, num_layers, dropout):
@@ -116,6 +119,7 @@ class Text2Emoji(nn.Module):
         lengths = ((source_sent != self.pad_id).to(torch.int64).sum(dim=0) - 1)
         mask.requires_grad = False
         lengths.requires_grad = False
+
         state = enc_seq[torch.arange(batch_size), lengths]
         for i in range(target_length - 1):
             state, logits = self.dec(target_sent[i, :], state)
@@ -128,3 +132,6 @@ class Text2Emoji(nn.Module):
 
         logits_sequence = torch.stack(logits_sequence, dim=1)
         return logits_sequence
+
+    def init_en_emb(self, embeddings):
+        self.enc.init_emb(embeddings)

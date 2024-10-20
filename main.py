@@ -16,10 +16,13 @@ from nltk.corpus import stopwords
 import nltk
 from nltk import WordPunctTokenizer, WordNetLemmatizer
 
-from collections import Counter
+import gensim.downloader as api
+
 import tqdm
 
 from src.model import Text2Emoji
+
+from datetime import date
 
 nltk.download('stopwords')
 stop_words = set(stopwords.words('english'))
@@ -99,64 +102,10 @@ def get_data_loader(dataset, batch_size, pad_index, shuffle=False):
     return data_loader
 
 
-if __name__ == '__main__':
-    dataset = load_dataset('KomeijiForce/Text2Emoji', split='train')
-    dataset.shuffle(seed=SEED)
-    dataset = dataset.filter(check_none)
+def train_model(model, train_data_loader):
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    pad_token, sos_token, eos_token, unk_token = SPECIAL_TOKENS.keys()
-    dataset = dataset.map(tokenize_emoji, fn_kwargs={'sos_token': sos_token, 'eos_token': eos_token},
-                          num_proc=torch.cpu.device_count())
-    dataset = dataset.map(tokenize_text,
-                          fn_kwargs={'max_length': MAX_TEXT_LENGTH, 'sos_token': sos_token, 'eos_token': eos_token},
-                          num_proc=torch.cpu.device_count())
-
-    emoji_vocab = torchtext.vocab.build_vocab_from_iterator(dataset['tokenized_emoji'], min_freq=MIN_FREQ_EMOJI,
-                                                            specials=list(SPECIAL_TOKENS.keys()))
-    text_vocab = torchtext.vocab.build_vocab_from_iterator(dataset['tokenized_text'], min_freq=MIN_FREQ_TEXT,
-                                                           specials=list(SPECIAL_TOKENS.keys()))
-
-    unk_idx = SPECIAL_TOKENS[unk_token]
-    emoji_vocab.set_default_index(unk_idx)
-    text_vocab.set_default_index(unk_idx)
-    print(emoji_vocab.get_itos()[:20])
-    print(text_vocab.get_itos()[:20])
-
-    data_type = "torch"
-    format_columns = ["emoji_ids", "text_ids"]
-
-    dataset = dataset.map(numericalize_data, fn_kwargs={'emoji_vocab': emoji_vocab, 'text_vocab': text_vocab})
-    dataset = dataset.with_format(type=data_type, columns=format_columns, output_all_columns=True)
-
-    # emoji_counter = Counter([token for sent in dataset['tokenized_emoji'] for token in sent.split()])
-    # text_counter = Counter([token for sent in dataset['tokenized_text'] for token in sent.split()])
-    # emoji_vocab = set([token for sent in dataset['tokenized_emoji'] for token in sent.split() if emoji_counter[token] > MIN_FREQ_EMOJI])
-    # text_vocab = set([token for sent in dataset['tokenized_text'] for token in sent.split() if text_counter[token] > MIN_FREQ_TEXT])
-
-    # print(len(emoji_vocab))
-    # print(len(text_vocab))
-
-    # emoji_token2id = {em: i for i, em in enumerate(emoji_vocab, start=len(SPECIAL_TOKENS))}
-    # text_token2id = {t: i for i, t in enumerate(text_vocab, start=len(SPECIAL_TOKENS))}
-
-    # for spec_tok, id_spec_tok in SPECIAL_TOKENS.items():
-    #     emoji_token2id[spec_tok] = id_spec_tok
-    #     text_token2id[spec_tok] = id_spec_tok
-
-    dataset = dataset.train_test_split(test_size=0.2)
-
-    train_dataset, test_dataset = (dataset['train'], dataset['test'])
-
-    pad_index = SPECIAL_TOKENS[pad_token]
-    train_data_loader = get_data_loader(train_dataset, BATCH_SIZE, pad_index, shuffle=True)
-    test_data_loader = get_data_loader(test_dataset, BATCH_SIZE, pad_index)
-
-    print(train_data_loader, test_data_loader)
-    print(train_dataset)
-    source_length, target_length = max(map(len, train_dataset['tokenized_text'])), max(
-        map(len, train_dataset['tokenized_emoji']))
-
-    model = Text2Emoji(len(text_vocab), len(emoji_vocab), 256, pad_index, 512, 1)
+    model.to(device=torch.device(device))
     optimazer = Adam(model.parameters(), lr=1e-3)
     loss = nn.CrossEntropyLoss()
 
@@ -186,3 +135,81 @@ if __name__ == '__main__':
                 model.eval()
                 mean_loss = sum(history_loss[(i - PRINT_STEP):i]) / PRINT_STEP
                 print(f'step: {i} / {EPOCH * len(train_data_loader)}, train_loss: {mean_loss}')
+
+                torch.save({
+                    'epoch': epoch,
+                    'model': model.state_dict(),
+                    'optim': optimazer.state_dict(),
+                    'loss': loss
+                }, f'./data/checkpoints/checkpoint_{date.today()}.pth')
+
+    return history_loss
+
+
+if __name__ == '__main__':
+    dataset = load_dataset('KomeijiForce/Text2Emoji', split='train')
+    dataset.shuffle(seed=SEED)
+    dataset = dataset.filter(check_none)
+
+    pad_token, sos_token, eos_token, unk_token = SPECIAL_TOKENS.keys()
+    dataset = dataset.map(tokenize_emoji, fn_kwargs={'sos_token': sos_token, 'eos_token': eos_token},
+                          num_proc=torch.cpu.device_count())
+    dataset = dataset.map(tokenize_text,
+                          fn_kwargs={'max_length': MAX_TEXT_LENGTH, 'sos_token': sos_token, 'eos_token': eos_token},
+                          num_proc=torch.cpu.device_count())
+
+    emoji_vocab = torchtext.vocab.build_vocab_from_iterator(dataset['tokenized_emoji'], min_freq=MIN_FREQ_EMOJI,
+                                                            specials=list(SPECIAL_TOKENS.keys()))
+    text_vocab = torchtext.vocab.build_vocab_from_iterator(dataset['tokenized_text'], min_freq=MIN_FREQ_TEXT,
+                                                           specials=list(SPECIAL_TOKENS.keys()))
+
+    unk_idx = SPECIAL_TOKENS[unk_token]
+    emoji_vocab.set_default_index(unk_idx)
+    text_vocab.set_default_index(unk_idx)
+    print(emoji_vocab.get_itos()[:20])
+    print(text_vocab.get_itos()[:20])
+
+    data_type = "torch"
+    format_columns = ["emoji_ids", "text_ids"]
+    dataset = dataset.map(numericalize_data, fn_kwargs={'emoji_vocab': emoji_vocab, 'text_vocab': text_vocab})
+    dataset = dataset.with_format(type=data_type, columns=format_columns, output_all_columns=True)
+
+    dataset = dataset.train_test_split(test_size=0.2)
+
+    train_dataset, test_dataset = (dataset['train'], dataset['test'])
+
+    pad_index = SPECIAL_TOKENS[pad_token]
+    train_data_loader = get_data_loader(train_dataset, BATCH_SIZE, pad_index, shuffle=True)
+    test_data_loader = get_data_loader(test_dataset, BATCH_SIZE, pad_index)
+
+    word_vectors = api.load("glove-wiki-gigaword-100")
+
+    embbedings = []
+    embbeding_size = 100
+    # pad
+    embbedings.append(np.zeros(embbeding_size))
+
+    glove_word_count = 0
+    for word in text_vocab.get_itos()[1:]:
+        if word_vectors.has_index_for(word):
+            embbedings.append(word_vectors[word])
+            glove_word_count += 1
+        else:
+            embbedings.append(
+                np.random.uniform(-1 / np.sqrt(embbeding_size), 1 / np.sqrt(embbeding_size), embbeding_size))
+
+    print(f'glove_word_count: {glove_word_count}, size of vocab: {len(text_vocab)}')
+    embbedings = torch.tensor(embbedings, dtype=torch.float32)
+
+    hidden_size = 512
+    num_layers = 1
+
+    model = Text2Emoji(len(text_vocab), len(emoji_vocab), embbeding_size, pad_index, hidden_size, num_layers)
+    model.init_en_emb(embbedings)
+
+    for param_tensor in model.state_dict():
+        print(param_tensor, "\t", model.state_dict()[param_tensor].size())
+
+    history_loss = train_model(model, train_data_loader)
+
+    torch.save(model.state_dict(), './data/saved_models/model_weights.pth')
