@@ -1,0 +1,18 @@
+data:
+  min_freq_emoji: 5
+  min_freq_text: 10
+  max_text_length: 128
+  train_test_ratio: 0.2
+special_tokens:
+  pad:
+    id: 0
+    token: '<pad>'
+  sos:
+    id: 1
+    token: '<sos>'
+  eos:
+    id: 2
+    token: '<eos>'
+  unk:
+    id: 3
+    token: '<unk>'

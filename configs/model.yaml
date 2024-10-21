@@ -1,0 +1,4 @@
+model_architecture:
+  hidden_size: 512
+  num_layers: 1
+  dropout: 0.2

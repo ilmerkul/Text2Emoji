@@ -1,0 +1,5 @@
+train_process:
+  batch_size: 32
+  epoch: 1
+  print_step: 100
+seed: 42
