@@ -2,7 +2,7 @@ data:
   min_freq_emoji: 5
   min_freq_text: 10
   max_text_length: 128
-  train_test_ratio: 0.2
+  train_test_ratio: 0.007
 special_tokens:
   pad:
     id: 0

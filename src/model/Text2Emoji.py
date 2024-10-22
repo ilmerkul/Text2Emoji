@@ -60,7 +60,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, de_vocab_size, emb_size, pad_id, hid_size, num_layers, dropout):
+    def __init__(self, de_vocab_size, emb_size, pad_id, hid_size, num_layers):
         super(Decoder, self).__init__()
 
         self.emb_size = emb_size
@@ -85,14 +85,21 @@ class Decoder(nn.Module):
 
 
 class Text2Emoji(nn.Module):
-    def __init__(self, en_vocab_size, de_vocab_size, emb_size, pad_id, hid_size, num_layers, dropout=0.2):
+    def __init__(self, en_vocab_size, de_vocab_size, sos_id, eos_id, pad_id, emb_size, hid_size, num_layers,
+                 dropout=0.2,
+                 sup_unsup_ratio=1.0):
         super(Text2Emoji, self).__init__()
 
         self.hid_size = hid_size
         self.pad_id = pad_id
+        self.de_vocab_size = de_vocab_size
+        self.sup_unsup_ratio = sup_unsup_ratio
+
+        self.sos_id = sos_id
+        self.eos_id = eos_id
 
         self.enc = Encoder(en_vocab_size, emb_size, pad_id, hid_size, num_layers, dropout)
-        self.dec = Decoder(de_vocab_size, emb_size, pad_id, hid_size, num_layers, dropout)
+        self.dec = Decoder(de_vocab_size, emb_size, pad_id, hid_size, num_layers)
 
         self.attention = AttentionLayer(hid_size)
 
@@ -107,7 +114,6 @@ class Text2Emoji(nn.Module):
         # source_sent (source_length, batch_size)
         # target_sent (target_length, batch_size)
         batch_size = enc_seq.shape[1]
-        sorce_length = source_sent.shape[0]
         target_length = target_sent.shape[0]
 
         enc_seq = enc_seq.permute(1, 0, 2)  # (batch_size, source_length, hid_size)
@@ -120,9 +126,18 @@ class Text2Emoji(nn.Module):
         mask.requires_grad = False
         lengths.requires_grad = False
 
-        state = enc_seq[torch.arange(batch_size), lengths]
+        state = enc_seq[torch.arange(batch_size), lengths]  # (batch_size, hid_size)
+        logits = F.one_hot(target_sent[0, :], num_classes=self.de_vocab_size)  # (batch_size, de_vocab_size)
         for i in range(target_length - 1):
-            state, logits = self.dec(target_sent[i, :], state)
+            target_pred = torch.argmax(logits, dim=-1)  # (batch_size, )
+            target = target_sent[i, :]
+
+            if torch.multinomial(torch.tensor([self.sup_unsup_ratio,
+                                               1.0 - self.sup_unsup_ratio], dtype=torch.float), 1)[0]:
+                target = target_pred
+
+            # logits (batch_size, de_vocab_size)
+            state, logits = self.dec(target, state)
             logits_sequence.append(logits)
 
             # calculate attention
@@ -135,3 +150,36 @@ class Text2Emoji(nn.Module):
 
     def init_en_emb(self, embeddings):
         self.enc.init_emb(embeddings)
+
+    def translate(self, source_sent, max_length=128):
+        enc_seq = self.enc(source_sent)  # (source_length, batch_size=1, hid_size)
+        batch_size = enc_seq.shape[1]
+
+        enc_seq = enc_seq.permute(1, 0, 2)  # (batch_size=1, source_length, hid_size)
+
+        logits_sequence = []
+
+        # mask (batch_size=1, source_length)
+        mask = torch.where((source_sent == self.pad_id), False, True).permute(1, 0)
+        lengths = ((source_sent != self.pad_id).to(torch.int64).sum(dim=0) - 1)
+        state = enc_seq[torch.arange(batch_size), lengths]  # (batch_size=1, hid_size)
+
+        logits = F.one_hot(torch.full((batch_size,), self.sos_id),
+                           num_classes=self.de_vocab_size)  # (batch_size=1, de_vocab_size)
+        for i in range(max_length):
+            target = torch.argmax(logits, dim=-1)  # (batch_size=1, )
+
+            if target[0] == self.eos_id:
+                return
+
+            # logits (batch_size=1, de_vocab_size)
+            state, logits = self.dec(target, state)
+            logits_sequence.append(logits)
+
+            # calculate attention
+            attention_state = self.attention(state, enc_seq, mask)
+
+            state = state + attention_state
+
+        logits_sequence = torch.stack(logits_sequence, dim=1)
+        return torch.argmax(logits_sequence, dim=-1)
