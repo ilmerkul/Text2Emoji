@@ -58,6 +58,9 @@ class Encoder(nn.Module):
     def init_emb(self, embbedings):
         self.emb.weight = nn.Parameter(embbedings, requires_grad=False)
 
+    def emb_requires_grad(self):
+        self.emb.requires_grad_(requires_grad=True)
+
 
 class Decoder(nn.Module):
     def __init__(self, de_vocab_size, emb_size, pad_id, hid_size, num_layers):
@@ -151,6 +154,9 @@ class Text2Emoji(nn.Module):
     def init_en_emb(self, embeddings):
         self.enc.init_emb(embeddings)
 
+    def emb_requires_grad(self):
+        self.enc.emb_requires_grad()
+
     def translate(self, source_sent, max_length=128):
         enc_seq = self.enc(source_sent)  # (source_length, batch_size=1, hid_size)
         batch_size = enc_seq.shape[1]
@@ -170,7 +176,7 @@ class Text2Emoji(nn.Module):
             target = torch.argmax(logits, dim=-1)  # (batch_size=1, )
 
             if target[0] == self.eos_id:
-                return
+                break
 
             # logits (batch_size=1, de_vocab_size)
             state, logits = self.dec(target, state)
