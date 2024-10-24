@@ -63,6 +63,12 @@ class Text2EmojiDataset(Dataset):
 
         return train_data_loader, test_data_loader
 
+    def get_test(self):
+        return self.dataset['test']
+
+    def get_train(self):
+        return self.dataset['train']
+
     def __len__(self):
         assert self.dataset is not None, 'download dataset'
         return len(self.dataset)

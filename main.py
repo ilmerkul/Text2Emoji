@@ -1,145 +1,22 @@
 import torch
-from torch.nn import CrossEntropyLoss
-from torch.nn.functional import one_hot
-from torch.optim import Adam, lr_scheduler
 
-import tqdm
 from datetime import date
 import sys
 import signal
 from omegaconf import OmegaConf
 
-from IPython.display import clear_output
-import matplotlib.pyplot as plt
-
 from src.model import Text2Emoji
 from src.parser import Text2EmojiParser
 from src.dataset import Text2EmojiDataset
-from src.utils import print_model, get_glove_embbedings, seed_all
+from src.utils import print_model, seed_all, train_model
+from src.transfer import get_glove_embbedings
 
 
-def evaluate_loss_test(model, test_data_loader, loss, emoji_vocab_size):
-    mean_loss = 0
-    model.eval()
-
-    with torch.no_grad():
-        for batch in test_data_loader:
-            batch_en_ids = batch['en_ids']
-            batch_de_ids = batch['de_ids']
-
-            logits = model(batch_en_ids, batch_de_ids)
-            loss_t = loss(logits, one_hot(batch_de_ids.permute(1, 0)[:, 1:],
-                                          num_classes=emoji_vocab_size).to(torch.float))
-
-            mean_loss += loss_t.item()
-
-    return mean_loss / len(test_data_loader)
-
-
-def print_learn_curve(history):
-    clear_output(True)
-    plt.close('all')
-    plt.figure(figsize=(12, 4))
-    for i, (name, h) in enumerate(sorted(history.items())):
-        plt.subplot(1, len(history), i + 1)
-        plt.title(name)
-        plt.plot(*zip(*h))
-        plt.grid()
-    plt.savefig(f'./data/learning_curves/curve_{date.today()}')
-    # plt.show()
-
-
-def train_model(model, dataset, n_epoch, print_step, emoji_vocab_size):
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-    model.to(device=torch.device(device))
-    optimizer = Adam(model.parameters(), lr=1e-3)
-    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[2, 4, 7], gamma=0.464159)
-    loss = CrossEntropyLoss()
-
-    batch_milestones = [2, 4, 7]
-    batch_sizes = [32, 64, 128, 256]
-    batch_step = 0
-
-    epoch_emb_requires_grad = 4
-
-    history = {'train_loss': [], 'test_loss': []}
-    train_loss = 0
-
-    test_learn_curve_increases = 0
-
-    train_data_loader, test_data_loader = dataset.get_data_loader(batch_sizes[0], pad_idx)
-    for epoch in range(n_epoch):
-        if epoch == epoch_emb_requires_grad:
-            model.emb_requires_grad()
-
-        if epoch in batch_milestones:
-            train_data_loader, test_data_loader = dataset.get_data_loader(batch_sizes[batch_step], pad_idx)
-            batch_step += 1
-        batch_size = batch_sizes[batch_step]
-
-        print(f'epoch: {epoch + 1}/{n_epoch}, '
-              f'lr: {scheduler.get_last_lr()}, '
-              f'batch_size: {batch_size}')
-        for i, batch in tqdm.tqdm(enumerate(train_data_loader)):
-            model.train()
-
-            batch_en_ids = batch['en_ids']
-            batch_de_ids = batch['de_ids']
-
-            optimizer.zero_grad()
-
-            logits = model(batch_en_ids, batch_de_ids)
-            loss_t = loss(logits, one_hot(batch_de_ids.permute(1, 0)[:, 1:],
-                                          num_classes=emoji_vocab_size).to(torch.float))
-            loss_t.backward()
-            optimizer.step()
-
-            train_loss += loss_t.item()
-            if i % print_step == 0 and i != 0:
-                model.eval()
-
-                # evaluate
-                mean_train_loss = train_loss / print_step
-                train_loss = 0
-                mean_test_loss = evaluate_loss_test(model, test_data_loader, loss, emoji_vocab_size)
-                print(f'step: {i}/{n_epoch * len(train_data_loader)}, '
-                      f'train_loss: {mean_train_loss}, '
-                      f'test_loss: {mean_test_loss}')
-                history['train_loss'].append((i, mean_train_loss))
-                history['test_loss'].append((i, mean_test_loss))
-
-                # save state
-                torch.save({
-                    'epoch': epoch,
-                    'model': model.state_dict(),
-                    'optim': optimizer.state_dict(),
-                    'scheduler': scheduler.state_dict(),
-                    'batch_size': batch_size,
-                    'loss': loss
-                }, f'./data/checkpoints/checkpoint_{date.today()}.pth')
-
-                # plot learning curve
-                print_learn_curve(history)
-
-                # callbacks
-                if len(history['test_loss']) > 1 and history['test_loss'][-2][1] < history['test_loss'][-1][1]:
-                    test_learn_curve_increases += 1
-                else:
-                    test_learn_curve_increases = 0
-
-                if test_learn_curve_increases > 5:
-                    return history
-        scheduler.step()
-
-    return history
-
-
-def load_model(model, path='data/checkpoints/checkpoint_2024-10-22.pth'):
+def load_model(m, path='data/checkpoints/checkpoint_2024-10-22.pth'):
     checkpoint = torch.load(path)
-    model.load_state_dict(checkpoint['model'])
+    m.load_state_dict(checkpoint['model'])
 
-    return model
+    return m
 
 
 if __name__ == '__main__':
@@ -181,8 +58,6 @@ if __name__ == '__main__':
     model.init_en_emb(embbedings)
     print_model(model)
 
-    model = load_model(model)
-
 
     def signal_capture(sig, frame):
         torch.save(model.state_dict(), f'./data/saved_models/SIGINT_model_weights_{date.today()}.pth')
@@ -194,6 +69,6 @@ if __name__ == '__main__':
     train_history = train_model(model, dataset,
                                 train_config.train_process.epoch,
                                 train_config.train_process.print_step,
-                                parser.emoji_vocab_size())
+                                parser.emoji_vocab_size(), pad_idx)
 
     torch.save(model.state_dict(), f'./data/saved_models/trained_model_weights_{date.today()}.pth')

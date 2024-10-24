@@ -1,4 +1,3 @@
-import gensim.downloader as api
 import numpy as np
 import torch
 
@@ -10,30 +9,22 @@ def seed_all(seed):
     torch.backends.cudnn.deterministic = True
 
 
+def print_model_size(model):
+    param_size = 0
+    param_count = 0
+    for param in model.parameters():
+        param_size += param.nelement() * param.element_size()
+        param_count += param.nelement()
+    buffer_size = 0
+    for buffer in model.buffers():
+        buffer_size += buffer.nelement() * buffer.element_size()
+
+    size_all_mb = (param_size + buffer_size) / 1024 ** 2
+    print(f'model params: {param_count}')
+    print('model size: {:.3f}MB'.format(size_all_mb))
+
+
 def print_model(model):
     for param_tensor in model.state_dict():
         print(param_tensor, "\t", model.state_dict()[param_tensor].size())
-
-
-def get_glove_embbedings(vocab):
-    word_vectors = api.load("glove-wiki-gigaword-100")
-
-    embbedings = []
-    embbeding_size = 100
-    # pad
-    embbedings.append(np.zeros(embbeding_size))
-
-    glove_word_count = 0
-    for word in vocab:
-        if word_vectors.has_index_for(word):
-            embbedings.append(word_vectors[word])
-            glove_word_count += 1
-        else:
-            embbedings.append(
-                np.random.uniform(-1 / np.sqrt(embbeding_size), 1 / np.sqrt(embbeding_size), embbeding_size))
-
-    print(f'glove_word_count: {glove_word_count}, size of vocab: {len(vocab)}')
-
-    embbedings = torch.tensor(embbedings, dtype=torch.float32)
-
-    return embbedings, embbeding_size
+    print_model_size(model)

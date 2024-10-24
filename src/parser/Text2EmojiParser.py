@@ -6,6 +6,8 @@ from nltk import WordPunctTokenizer, WordNetLemmatizer
 import torchtext
 
 nltk.download('stopwords')
+nltk.download('punkt')
+nltk.download('wordnet')
 
 
 class Text2EmojiParser:
@@ -21,6 +23,7 @@ class Text2EmojiParser:
 
         self.emoji_vocab = None
         self.text_vocab = None
+        self.max_length = None
 
     def tokenize_emoji(self, row):
         tokenized_row = list(map(lambda x: x if emoji.is_emoji(x) else '', row['emoji']))
@@ -28,6 +31,7 @@ class Text2EmojiParser:
         return {'tokenized_emoji': tokenized_row}
 
     def tokenize_text(self, row, max_length):
+        self.max_length = max_length
         tokenized_row = list(filter(lambda x: x not in self.stop_words and x.isalpha(),
                                     map(lambda x: self.lemmatizer.lemmatize(x),
                                         nltk.word_tokenize(row['text'].lower())[:max_length])))
@@ -43,6 +47,10 @@ class Text2EmojiParser:
                                                                     min_freq=min_freq_text,
                                                                     specials=specials)
 
+    def set_default_index(self, idx):
+        self.emoji_vocab.set_default_index(idx)
+        self.text_vocab.set_default_index(idx)
+
     def numericalize_data(self, row):
         assert self.emoji_vocab is not None and self.text_vocab is not None
 
@@ -55,3 +63,8 @@ class Text2EmojiParser:
 
     def emoji_vocab_size(self):
         return len(self.emoji_vocab)
+
+    def tokenize(self, row):
+        assert self.emoji_vocab is not None and self.text_vocab is not None and self.max_length is not None
+
+        return self.text_vocab.lookup_indices(self.tokenize_text(row, self.max_length)['tokenized_text'])
