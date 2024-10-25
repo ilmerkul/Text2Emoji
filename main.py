@@ -1,8 +1,8 @@
 import torch
 
-from datetime import date
 import sys
 import signal
+from datetime import date
 from omegaconf import OmegaConf
 
 from src.model import Text2Emoji

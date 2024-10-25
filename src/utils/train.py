@@ -49,7 +49,7 @@ def evaluate_loss_test(model, test_data_loader, loss, emoji_vocab_size, device):
 
 
 def print_learn_curve(history):
-    clear_output(True)
+    # clear_output(True)
     plt.close('all')
     plt.figure(figsize=(12, 4))
     for i, (name, h) in enumerate(sorted(history.items())):
@@ -116,7 +116,7 @@ def train_model(model, dataset, n_epoch, print_step, emoji_vocab_size, pad_idx):
                 mean_train_loss = train_loss / print_step
                 train_loss = 0
                 mean_test_loss = evaluate_loss_test(model, test_data_loader, loss, emoji_vocab_size, device)
-                print(f'step: {i}/{n_epoch * len(train_data_loader)}, '
+                print(f'step: {i}/{len(train_data_loader)}, '
                       f'train_loss: {mean_train_loss}, '
                       f'test_loss: {mean_test_loss}')
                 history['train_loss'].append(mean_train_loss)

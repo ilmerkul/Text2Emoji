@@ -1,5 +1,5 @@
 model_architecture:
-  hidden_size: 256
+  hidden_size: 350
   num_layers: 2
   dropout: 0.2
   sup_unsup_ratio: 0.9
