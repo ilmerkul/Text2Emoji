@@ -1,4 +1,4 @@
-from datasets import load_dataset
+from datasets import load_dataset, load_from_disk
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from torch import cpu
@@ -59,9 +59,14 @@ class Text2EmojiDataset(Dataset):
             collate_fn=collate_fn,
             shuffle=False,
         )
-        print(f'train_size: {len(train_data_loader)}, test_size: {len(test_data_loader)}')
 
         return train_data_loader, test_data_loader
+
+    def save(self, path):
+        self.dataset.save_to_disk(path)
+
+    def load(self, path):
+        self.dataset = load_from_disk(path)
 
     def get_test(self):
         return self.dataset['test']

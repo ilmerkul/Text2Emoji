@@ -4,6 +4,7 @@ import nltk
 from nltk import WordPunctTokenizer, WordNetLemmatizer
 
 import torchtext
+from torch import save, load
 
 nltk.download('stopwords')
 nltk.download('punkt')
@@ -63,6 +64,12 @@ class Text2EmojiParser:
 
     def emoji_vocab_size(self):
         return len(self.emoji_vocab)
+
+    def save(self, path):
+        save((self.text_vocab, self.emoji_vocab, self.max_length), path)
+
+    def load(self, path):
+        self.text_vocab, self.emoji_vocab, self.max_length = load(path)
 
     def tokenize(self, row):
         assert self.emoji_vocab is not None and self.text_vocab is not None and self.max_length is not None

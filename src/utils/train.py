@@ -14,6 +14,21 @@ import evaluate
 bleu = evaluate.load('bleu')
 
 
+def load_checkpoint(path, model, optim, scheduler, loss):
+    checkpoint = torch.load(path)
+    model.load_state_dict(checkpoint['model'])
+    loss = torch['loss']
+    optim.load_state_dict(checkpoint['optim'])
+    scheduler.load_state_dict(checkpoint['scheduler'])
+    history = checkpoint['history']
+    batch_size = checkpoint['batch_size']
+    epoch = checkpoint['epoch']
+
+    return {'model': model, 'loss': loss, 'optim': optim,
+            'scheduler': scheduler, 'history': history,
+            'batch_size': batch_size, 'epoch': epoch}
+
+
 def evaluate_bleu(model, dataset, device):
     train_dataset = dataset.get_test()
     references = list(map(lambda x: [' '.join(map(str, x.tolist()[1:-1]))], train_dataset['emoji_ids']))

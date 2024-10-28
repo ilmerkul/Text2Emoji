@@ -20,8 +20,6 @@ def get_glove_embbedings(vocab):
             embbedings.append(
                 np.random.uniform(-1 / np.sqrt(embbeding_size), 1 / np.sqrt(embbeding_size), embbeding_size))
 
-    print(f'glove_word_count: {glove_word_count}, size of vocab: {len(vocab)}')
-
     embbedings = torch.from_numpy(np.array(embbedings, dtype=float)).to(dtype=torch.float32)
 
-    return embbedings, embbeding_size
+    return embbedings, glove_word_count
