@@ -1,22 +1,22 @@
-from datasets import load_dataset, load_from_disk
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from torch import cpu
 
 
 class Text2EmojiDataset(Dataset):
-    def __init__(self):
-        self.dataset = None
+    def __init__(self, dataset):
+        self.dataset = dataset
 
-    def download_and_tokenization_dataset(self, tokenize_emoji_func, tokenize_text_func, max_text_length, seed=42):
-        self.dataset = load_dataset('KomeijiForce/Text2Emoji', split='train')
+    def shuffle(self, seed=42):
         self.dataset.shuffle(seed=seed)
 
+    def filter_none(self):
         def check_none(row):
             return row['text'] is not None and row['emoji'] is not None and row['topic'] is not None
 
         self.dataset = self.dataset.filter(check_none)
 
+    def tokenization_dataset(self, tokenize_emoji_func, tokenize_text_func, max_text_length):
         self.dataset = self.dataset.map(tokenize_emoji_func, num_proc=cpu.device_count())
         self.dataset = self.dataset.map(tokenize_text_func, fn_kwargs={'max_length': max_text_length},
                                         num_proc=cpu.device_count())
@@ -64,9 +64,6 @@ class Text2EmojiDataset(Dataset):
 
     def save(self, path):
         self.dataset.save_to_disk(path)
-
-    def load(self, path):
-        self.dataset = load_from_disk(path)
 
     def get_test(self):
         return self.dataset['test']

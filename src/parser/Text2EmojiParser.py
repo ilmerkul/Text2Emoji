@@ -6,10 +6,6 @@ from nltk import WordPunctTokenizer, WordNetLemmatizer
 import torchtext
 from torch import save, load
 
-nltk.download('stopwords')
-nltk.download('punkt')
-nltk.download('wordnet')
-
 
 class Text2EmojiParser:
     def __init__(self, pad_token, sos_token, eos_token, unk_token):
