@@ -3,12 +3,16 @@ import numpy as np
 import torch
 
 
-def get_glove_embbedings(vocab):
+def get_glove_embbedings(vocab: dict[str, int]) -> (torch.Tensor, int):
+    """
+    Load glove-wiki-gigaword-100 embbeding, which are in the vocab.
+    :param vocab: vocab with words
+    :return: torch tensor embbedings and count of glove words
+    """
     word_vectors = api.load("glove-wiki-gigaword-100")
 
     embbedings = []
     embbeding_size = 100
-    # pad
     embbedings.append(np.zeros(embbeding_size))
 
     glove_word_count = 0

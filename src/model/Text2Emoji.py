@@ -4,7 +4,11 @@ import torch.nn.functional as F
 
 
 class AttentionLayer(nn.Module):
-    def __init__(self, hid_size):
+    """
+    Attention class for Text2Emoji model.
+    """
+
+    def __init__(self, hid_size: int):
         super(AttentionLayer, self).__init__()
 
         self.hid_size = hid_size
@@ -12,7 +16,7 @@ class AttentionLayer(nn.Module):
         self.act = nn.Tanh()
         self.linear1 = nn.Linear(hid_size, 1)
 
-    def forward(self, hidden, enc_seq, mask):
+    def forward(self, hidden: torch.Tensor, enc_seq: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         # hidden (batch_size, hid_size)
         # enc_seq (batch_size, source_length, hid_size)
         # mask (batch_size, source_length)
@@ -35,7 +39,11 @@ class AttentionLayer(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, en_vocab_size, emb_size, pad_id, hid_size, num_layers, dropout):
+    """
+    Encoder class for Text2Emoji model.
+    """
+
+    def __init__(self, en_vocab_size: int, emb_size: int, pad_id: int, hid_size: int, num_layers: int, dropout: float):
         super(Encoder, self).__init__()
 
         self.emb_size = emb_size
@@ -46,7 +54,7 @@ class Encoder(nn.Module):
                            bidirectional=True)
         self.hid_lin = nn.Linear(2 * hid_size, hid_size)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x (batch_size, source_length)
         x = self.emb(x)  # (batch_size, source_length, emb_size)
 
@@ -55,15 +63,28 @@ class Encoder(nn.Module):
 
         return enc_seq  # (batch_size, source_length, hid_size)
 
-    def init_emb(self, embbedings):
+    def init_emb(self, embbedings: torch.Tensor) -> None:
+        """
+        Set embbedings weights with requires_grad=False.
+        :param embbedings: embbedings weights
+        :return: None
+        """
         self.emb.weight = nn.Parameter(embbedings, requires_grad=False)
 
-    def emb_requires_grad(self):
+    def emb_requires_grad(self) -> None:
+        """
+        Set requires_grad=True for model's embbedings.
+        :return: None
+        """
         self.emb.requires_grad_(requires_grad=True)
 
 
 class Decoder(nn.Module):
-    def __init__(self, de_vocab_size, emb_size, pad_id, hid_size, num_layers):
+    """
+    Decoder class for Text2Emoji model.
+    """
+
+    def __init__(self, de_vocab_size: int, emb_size: int, pad_id: int, hid_size: int, num_layers: int):
         super(Decoder, self).__init__()
 
         self.emb_size = emb_size
@@ -74,7 +95,7 @@ class Decoder(nn.Module):
 
         self.linear0 = nn.Linear(hid_size, de_vocab_size)
 
-    def forward(self, x, hidden_state):
+    def forward(self, x: torch.Tensor, hidden_state: torch.Tensor) -> torch.Tensor:
         # x (batch_size, )
         # hidden_state (batch_size, hid_size)
 
@@ -88,9 +109,9 @@ class Decoder(nn.Module):
 
 
 class Text2Emoji(nn.Module):
-    def __init__(self, en_vocab_size, de_vocab_size, sos_id, eos_id, pad_id, emb_size, hid_size, num_layers,
-                 dropout=0.2,
-                 sup_unsup_ratio=1.0):
+    def __init__(self, en_vocab_size: int, de_vocab_size: int, sos_id: int,
+                 eos_id: int, pad_id: int, emb_size: int, hid_size: int,
+                 num_layers: int, dropout: float = 0.2, sup_unsup_ratio: float = 1.0):
         super(Text2Emoji, self).__init__()
 
         self.hid_size = hid_size
@@ -106,13 +127,14 @@ class Text2Emoji(nn.Module):
 
         self.attention = AttentionLayer(hid_size)
 
-    def forward(self, source_sent, target_sent):
+    def forward(self, source_sent: torch.Tensor, target_sent: torch.Tensor) -> torch.Tensor:
         # source_sent (batch_size, source_length)
         # target_sent (batch_size, target_length)
         enc_seq = self.enc(source_sent)
         return self.decoder_forward(enc_seq, source_sent, target_sent)
 
-    def decoder_forward(self, enc_seq, source_sent, target_sent):
+    def decoder_forward(self, enc_seq: torch.Tensor, source_sent: torch.Tensor,
+                        target_sent: torch.Tensor) -> torch.Tensor:
         # enc_seq (source_length, batch_size, hid_size)
         # source_sent (source_length, batch_size)
         # target_sent (target_length, batch_size)
@@ -151,13 +173,28 @@ class Text2Emoji(nn.Module):
         logits_sequence = torch.stack(logits_sequence, dim=1)
         return logits_sequence
 
-    def init_en_emb(self, embeddings):
+    def init_en_emb(self, embeddings: torch.Tensor) -> None:
+        """
+        Call encoder's init_emb function for set embbedings weight.
+        :param embeddings: embbedings weights
+        :return: None
+        """
         self.enc.init_emb(embeddings)
 
-    def emb_requires_grad(self):
+    def emb_requires_grad(self) -> None:
+        """
+        Call encoder's emb_requires_grad function for embbedings tensor requires_grad=True.
+        :return: None
+        """
         self.enc.emb_requires_grad()
 
-    def translate(self, source_sent, max_length=128):
+    def translate(self, source_sent: torch.Tensor, max_length: int = 128) -> torch.Tensor:
+        """
+        Translate source sentence to emoji sentence.
+        :param source_sent: text sentence
+        :param max_length: maximum length of return sentence
+        :return: target emoji sentence
+        """
         enc_seq = self.enc(source_sent)  # (source_length, batch_size=1, hid_size)
         batch_size = enc_seq.shape[1]
 

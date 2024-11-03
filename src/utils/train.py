@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import torch
 from torch.nn.functional import one_hot
 
+from src.dataset import Text2EmojiDataset
+from src.model import Text2Emoji
 from datetime import date
 
 import evaluate
@@ -10,7 +12,18 @@ import evaluate
 bleu = evaluate.load('bleu')
 
 
-def load_checkpoint(path, model, optim, scheduler, loss):
+def load_checkpoint(path: str, model: Text2Emoji, optim: torch.optim.Adam,
+                    scheduler: torch.optim.lr_scheduler) -> dict:
+    """
+    Load state of model's learning from path.
+    :param path: path for load checkpoint
+    :param model: torch model for load state checkpoint['model']
+    :param optim: optimizer for load state checkpoint['optim']
+    :param scheduler: lr_scheduler for load state checkpoint['scheduler']
+    :return: dict - {'model': model, 'loss': loss, 'optim': optim,
+                     'scheduler': scheduler, 'history': history,
+                     'batch_size': batch_size, 'epoch': epoch}
+    """
     checkpoint = torch.load(path)
     model.load_state_dict(checkpoint['model'])
     loss = torch['loss']
@@ -25,21 +38,39 @@ def load_checkpoint(path, model, optim, scheduler, loss):
             'batch_size': batch_size, 'epoch': epoch}
 
 
-def evaluate_bleu(model, dataset, device):
+def evaluate_bleu(model: Text2Emoji, dataset: Text2EmojiDataset, device: torch.device) -> float:
+    """
+    Evaluate bleu metric of torch model on dataset.
+    :param model: torch model
+    :param dataset: class Text2EmojiDataset dataset
+    :param device: torch device (CPU/GPU/TPU)
+    :return: value of bleu metric on test data
+    """
     train_dataset = dataset.get_test()
     references = list(map(lambda x: [' '.join(map(str, x.tolist()[1:-1]))], train_dataset['emoji_ids']))
     predictions = []
+    model.to(device)
     for k in range(len(train_dataset['text_ids'])):
         source = train_dataset['text_ids'][k].unsqueeze(-1)
         source = source.to(device=device)
-        prediction = model.translate()
+        prediction = model.translate(source)
         predictions.append(' '.join(map(str, prediction[0][:-1].tolist())))
     results = bleu.compute(predictions=predictions, references=references, tokenizer=str.split, max_order=2)
 
     return results
 
 
-def evaluate_loss_test(model, test_data_loader, loss, emoji_vocab_size, device):
+def evaluate_loss_test(model: Text2Emoji, test_data_loader: torch.utils.data.DataLoader,
+                       loss: torch.nn.CrossEntropyLoss, num_classes: int, device: torch.device) -> float:
+    """
+    Evaluate loss of torch model on test_data_loader.
+    :param model: torch model
+    :param test_data_loader: torch Dataloader
+    :param loss: torch cross entropy loss function
+    :param num_classes: count of classes
+    :param device: torch device (CPU/GPU/TPU)
+    :return: average value of loss on test data
+    """
     mean_loss = 0
     model.eval()
 
@@ -52,14 +83,20 @@ def evaluate_loss_test(model, test_data_loader, loss, emoji_vocab_size, device):
 
             logits = model(batch_en_ids, batch_de_ids)
             loss_t = loss(logits, one_hot(batch_de_ids.permute(1, 0)[:, 1:],
-                                          num_classes=emoji_vocab_size).to(torch.float))
+                                          num_classes=num_classes).to(torch.float))
 
             mean_loss += loss_t.item()
+    mean_loss = mean_loss / len(test_data_loader)
+    return mean_loss
 
-    return mean_loss / len(test_data_loader)
 
-
-def print_learn_curve(history):
+def save_learn_curve(history: dict[str, list[float]], path: str) -> None:
+    """
+    Plot and save learn curve.
+    :param history: Dict with train and test loss history.
+    :param path: path for save curve
+    :return: None
+    """
     plt.close('all')
     plt.figure(figsize=(12, 4))
     for i, (name, h) in enumerate(sorted(history.items())):
@@ -67,4 +104,4 @@ def print_learn_curve(history):
         plt.title(name)
         plt.plot(range(len(h)), h)
         plt.grid()
-    plt.savefig(f'./data/learning_curves/curve_{date.today()}')
+    plt.savefig(f'{path}/curve_{date.today()}')
