@@ -1,2 +1,7 @@
 name: "1.0-process-data-and-train-GRU-model"
 mlflow_server: "http://127.0.0.1:5000"
+seed: 42
+defaults:
+ - model: model
+ - processing: processing
+ - train: train

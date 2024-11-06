@@ -1,0 +1,8 @@
+epoch: 8
+batch_sizes: [32, 64, 128, 256]
+batch_milestones: [2, 4, 7]
+lr_0: 1e-3
+lr_milestones: [2, 4, 7]
+gamma: 0.464159
+epoch_emb_requires_grad: 4
+print_step: 100
