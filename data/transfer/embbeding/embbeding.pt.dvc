@@ -1,0 +1,5 @@
+outs:
+- md5: 70901050be7bc5180b79248b94aa5e35
+  size: 4611558
+  hash: md5
+  path: embbeding.pt

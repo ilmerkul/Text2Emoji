@@ -1,0 +1,5 @@
+outs:
+- md5: 779458c47cab70e8e5edaf87444948f9
+  size: 218844
+  hash: md5
+  path: parser.pt
