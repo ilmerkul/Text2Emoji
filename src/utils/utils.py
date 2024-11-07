@@ -1,8 +1,9 @@
-import numpy as np
-import torch
-from loguru import logger
 import sys
 import warnings
+
+from loguru import logger
+import numpy as np
+import torch
 
 
 def seed_all(seed: int) -> None:
@@ -33,8 +34,8 @@ def print_model_size(model: torch.nn.Module) -> None:
         buffer_size += buffer.nelement() * buffer.element_size()
 
     size_all_mb = (param_size + buffer_size) / 1024 ** 2
-    print(f'model params: {param_count}')
-    print('model size: {:.3f}MB'.format(size_all_mb))
+    print(f"model params: {param_count}")
+    print("model size: {:.3f}MB".format(size_all_mb))
 
 
 def print_model(model: torch.nn.Module) -> None:
@@ -55,8 +56,9 @@ def set_logger() -> None:
     """
     # set up logging
     logger.remove()
-    logger.add(sys.stdout, format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}")
-    warnings.filterwarnings('ignore')
+    logger.add(sys.stdout,
+               format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}")
+    warnings.filterwarnings("ignore")
 
 
 def load_model(model: torch.nn.Module, path: str) -> torch.nn.Module:

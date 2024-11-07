@@ -1,1 +1,3 @@
-from .embedding import get_glove_embbedings
+from .embedding import get_glove_embeddings
+
+__all__ = ["get_glove_embeddings"]

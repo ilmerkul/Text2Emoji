@@ -1,0 +1,8 @@
+[flake8]
+application-import-names = src
+
+import-order-style = google
+inline-quotes = "
+exclude = docs
+
+ignore = D100, D102, D104, D105, D107, D205, D400, E126
