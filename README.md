@@ -1,2 +1,2 @@
 # Text2Emoji
-Fun project
+NMT english sentence to emoji row
