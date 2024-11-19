@@ -3,10 +3,9 @@ from datetime import date
 import evaluate
 import matplotlib.pyplot as plt
 import torch
-from torch.nn.functional import one_hot
-
 from src.dataset import Text2EmojiDataset
 from src.model import Text2Emoji
+from torch.nn.functional import one_hot
 
 bleu = evaluate.load("bleu")
 

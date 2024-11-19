@@ -1,9 +1,21 @@
 import sys
 import warnings
 
-from loguru import logger
 import numpy as np
 import torch
+from loguru import logger
+
+
+def set_logger() -> None:
+    """
+    Set loguru logger
+    :return: None
+    """
+    # set up logging
+    logger.remove()
+    logger.add(sys.stdout,
+               format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}")
+    warnings.filterwarnings("ignore")
 
 
 def seed_all(seed: int) -> None:
@@ -47,18 +59,6 @@ def print_model(model: torch.nn.Module) -> None:
     for param_tensor in model.state_dict():
         print(param_tensor, "\t", model.state_dict()[param_tensor].size())
     print_model_size(model)
-
-
-def set_logger() -> None:
-    """
-    Set loguru logger
-    :return: None
-    """
-    # set up logging
-    logger.remove()
-    logger.add(sys.stdout,
-               format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}")
-    warnings.filterwarnings("ignore")
 
 
 def load_model(model: torch.nn.Module, path: str) -> torch.nn.Module:

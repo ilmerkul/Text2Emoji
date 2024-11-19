@@ -1,0 +1,1 @@
+from .Text2EmojiTrainer import Text2EmojiTrainer

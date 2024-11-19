@@ -2,10 +2,10 @@ from typing import Iterable
 
 import emoji
 import nltk
+import torchtext
 from nltk import WordNetLemmatizer, WordPunctTokenizer
 from nltk.corpus import stopwords
 from torch import load, save
-import torchtext
 
 
 class Text2EmojiParser:
